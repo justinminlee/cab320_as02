@@ -17,6 +17,9 @@ import os
 import numpy as np
 import keras.applications as ka
 import keras
+import cv2
+import math
+import matplotlib.pyplot as plt
     
 def my_team():
     '''
@@ -42,7 +45,13 @@ def load_data(path):
     
     Insert a more detailed description here.
     '''
-    raise NotImplementedError
+    images = []
+    directories = [ f.path for f in os.scandir('./small_flower_dataset') ]
+    for directory in directories:
+        images.extend([ (directory.split('/')[2], cv2.resize(cv2.imread(f.path), (180,145))) for f in os.scandir(directory) ])
+    images = np.array(images, dtype=object)
+    return images
+    
     
     
 def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
@@ -221,7 +230,7 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
 if __name__ == "__main__":
     
     model = load_model()
-    dataset = load_data()
+    dataset = load_data('./small_flower_dataset')
     train_eval_test = split_data()
     
     model, metrics = transfer_learning()
