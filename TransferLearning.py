@@ -48,7 +48,7 @@ def load_data(path):
     images = []
     directories = [ f.path for f in os.scandir('./small_flower_dataset') ]
     for directory in directories:
-        images.extend([ (directory.split('/')[2], cv2.resize(cv2.imread(f.path), (180,145))) for f in os.scandir(directory) ])
+        images.extend([ (directory.split('/')[2], cv2.resize(cv2.imread(f.path), (128,128))) for f in os.scandir(directory) ])
     images = np.array(images, dtype=object)
     return images
     
