@@ -34,7 +34,7 @@ def load_model():
     Load in a model using the tf.keras.applications model and return it.
     Insert a more detailed description here
     '''
-    raise NotImplementedError
+    return ka.MobileNetV2(input_shape=(128,128,3), include_top=False)
     
 
 def load_data(path):
