@@ -20,6 +20,8 @@ import keras
 import cv2
 import math
 import matplotlib.pyplot as plt
+
+import seaborn as sns
     
 def my_team():
     '''
@@ -93,7 +95,33 @@ def confusion_matrix(predictions, ground_truth, plot=False, all_classes=None):
               each column to a prediction of a unique class by a classifier
     '''
     
-    raise NotImplementedError
+    # If all_classes is not provided, determine the unique classes from the ground_truth
+    if all_classes is None:
+        all_classes = np.unique(ground_truth)
+
+    # Get the number of unique classes
+    num_classes = len(all_classes)
+
+    # Create a dictionary mapping each class to its index
+    class_to_index = {cls: idx for idx, cls in enumerate(all_classes)}
+
+    # Initialize the confusion matrix with zeros
+    cm = np.zeros((num_classes, num_classes), dtype=int)
+
+    # Iterate through each pair of ground truth and prediction
+    for gt, pred in zip(ground_truth, predictions):
+        # Increment the corresponding cell in the confusion matrix
+        cm[class_to_index[gt], class_to_index[pred]] += 1
+
+    # If plot is True, create a heatmap plot of the confusion matrix
+    if plot:
+        plt.figure(figsize=(10, 7))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=all_classes, yticklabels=all_classes)
+        plt.xlabel('Predicted')
+        plt.ylabel('Actual')
+        plt.title('Confusion Matrix')
+        plt.show()
+    
     return cm
     
 
@@ -106,7 +134,13 @@ def precision(predictions, ground_truth):
         - precision: type np.ndarray of length c,
                      values are the precision for each class
     '''
-    raise NotImplementedError
+    
+    # Calculate the confusion matrix using the predictions and ground truth
+    cm = confusion_matrix(predictions, ground_truth)
+
+    # Calculate precision for each class by dividing the diagonal of the confusion matrix by the sum of each column
+    precision = np.diag(cm) / np.sum(cm, axis=0)
+
     return precision
 
 def recall(predictions, ground_truth):
@@ -118,7 +152,13 @@ def recall(predictions, ground_truth):
         - recall: type np.ndarray of length c,
                      values are the recall for each class
     '''
-    raise NotImplementedError
+    
+    # Calculate the confusion matrix using the predictions and ground truth
+    cm = confusion_matrix(predictions, ground_truth)
+
+    # Calculate recall for each class by dividing the diagonal of the confusion matrix by the sum of each row
+    recall = np.diag(cm) / np.sum(cm, axis=1)
+
     return recall
 
 def f1(predictions, ground_truth):
@@ -130,7 +170,13 @@ def f1(predictions, ground_truth):
         - f1: type nd.ndarry of length c where c is the number of classes
     '''
     
-    raise NotImplementedError
+    # Calculate precision and recall using the precision and recall functions
+    prec = precision(predictions, ground_truth)
+    rec = recall(predictions, ground_truth)
+
+    # Calculate the F1 score using the formula: 2 * (precision * recall) / (precision + recall)
+    f1 = 2 * (prec * rec) / (prec + rec)
+
     return f1
 
 def k_fold_validation(features, ground_truth, classifier, k=2):
@@ -156,22 +202,66 @@ def k_fold_validation(features, ground_truth, classifier, k=2):
     #split data
     ### YOUR CODE HERE ###
     
+    # Initialize metrics storage
+    all_precisions = []
+    all_recalls = []
+    all_f1s = []
+
+    # Generate an array of indices and shuffle them
+    indices = np.arange(features.shape[0])
+    np.random.shuffle(indices)
+
+    # Split the shuffled indices into k roughly equal-sized folds
+    folds = np.array_split(indices, k)
+
     #go through each partition and use it as a test set.
     for partition_no in range(k):
         #determine test and train sets
         ### YOUR CODE HERE###
-        
+
+        # Determine test indices and training indices for the current fold
+        test_indices = folds[partition_no]
+        train_indices = np.concatenate(folds[:partition_no] + folds[partition_no + 1:])
+
+        # Split the features and ground truth into training and test sets based on the indices
+        train_features, test_features = features[train_indices], features[test_indices]
+        train_classes, test_classes = ground_truth[train_indices], ground_truth[test_indices]
+
         #fit model to training data and perform predictions on the test set
         classifier.fit(train_features, train_classes)
         predictions = classifier.predict(test_features)
         
         #calculate performance metrics
         ### YOUR CODE HERE###
+
+        # Calculate precision, recall, and f1 scores for the current fold
+        prec = precision(predictions, test_classes)
+        rec = recall(predictions, test_classes)
+        f1_scores = f1(predictions, test_classes)
+
+        # Append the metrics for the current fold to the lists
+        all_precisions.append(prec)
+        all_recalls.append(rec)
+        all_f1s.append(f1_scores)
     
     #perform statistical analyses on metrics
     ### YOUR CODE HERE###
-    
-    raise NotImplementedError
+
+    # Compute the average and standard deviation of the metrics across all folds
+    avg_precision = np.mean(all_precisions, axis=0)
+    avg_recall = np.mean(all_recalls, axis=0)
+    avg_f1 = np.mean(all_f1s, axis=0)
+
+    std_precision = np.std(all_precisions, axis=0)
+    std_recall = np.std(all_recalls, axis=0)
+    std_f1 = np.std(all_f1s, axis=0)
+
+    # Combine the average metrics into a single array
+    avg_metrics = np.array([avg_precision, avg_recall, avg_f1])
+
+    # Combine the standard deviation metrics into a single array
+    sigma_metrics = np.array([std_precision, std_recall, std_f1])
+
     return avg_metrics, sigma_metrics
 
 
