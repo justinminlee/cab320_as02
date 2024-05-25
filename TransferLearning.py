@@ -48,11 +48,14 @@ def load_data(path):
     Insert a more detailed description here.
     '''
     images = []
-    directories = [ f.path for f in os.scandir('./small_flower_dataset') ]
+    # Obtain a list of subdirectory paths within the base path
+    directories = [ f.path for f in os.scandir(path) ]
+    # For each directory path...
     for directory in directories:
+        # Read in each image and label - resizing each image to 128x128 pixels.
         images.extend([ (directory.split('/')[2], cv2.resize(cv2.imread(f.path), (128,128))) for f in os.scandir(directory) ])
-    images = np.array(images, dtype=object)
-    return images
+    # Convert the list of image-label tuples to a numpy array and return
+    return np.array(images, dtype=object)
     
     
     
@@ -289,7 +292,33 @@ def transfer_learning(train_set, eval_set, test_set, model, parameters):
             model on the test_set (list of np.ndarray)
 
     '''
-    raise NotImplementedError
+    # Freeze training weights of MobileNetV2 base model
+    model.trainable = False
+    # Construct new model on top of MobileNetV2
+    inputs = keras.Input((128,128,3))
+    x = model(inputs, training=False)
+    x = keras.layers.GlobalAveragePooling2D()(x)    
+    outputs = keras.layers.Dense(1, activation='sigmoid')(x)
+    model = keras.Model(inputs, outputs)
+    
+    # Compile the new model
+    model.compile(optimizer=keras.optimizers.SGD(learning_rate=parameters[0], momentum=parameters[1], nesterov=parameters[2]), \
+                  loss=keras.losses.BinaryCrossentropy(), \
+                  metrics=keras.metrics.BinaryAccuracy(threshold=0.5, name='accuracy'))
+        
+    # Train the new model
+    model.fit(train_set, epochs=10, validation_data=eval_set)
+    
+    # Create predictions
+    predictions = model.predict(test_set[0])
+    # Establish the expected results
+    ground_truth = test_set[1]
+    
+    # Calculate the evaluation metrics (recall, precision, and f1)
+    metrics = [ recall(predictions, ground_truth), \
+                precision(predictions, ground_truth), \
+                f1(predictions, ground_truth) ]
+    
     return model, metrics
     
 def accelerated_learning(train_set, eval_set, test_set, model, parameters):
@@ -323,7 +352,12 @@ if __name__ == "__main__":
     dataset = load_data('./small_flower_dataset')
     train_eval_test = split_data()
     
-    model, metrics = transfer_learning()
+    learning_rate = 0.01
+    momentum = 0
+    nesterov = False
+    model_params = (learning_rate, momentum, nesterov)
+    
+    model, metrics = transfer_learning(train_eval_test[0], train_eval_test[1], train_eval_test[2], model, model_params)
     
     model, metrics = accelerated_learning()
     
