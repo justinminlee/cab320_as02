@@ -182,6 +182,33 @@ def f1(predictions, ground_truth):
 
     return f1
 
+def split_data_label(dataset):
+
+    # Define the dimensions of the images (height, width, channels)
+    image_dims = (224, 224, 3)
+
+    # Calculate the total number of features in each image
+    num_features = np.prod(image_dims)
+
+    # Initialize lists to store image data and corresponding labels
+    data = []
+    labels = []
+
+    # Iterate over each row in the dataset
+    for row in dataset:
+        # Extract the image data from the row, excluding the last element (which is the label)
+        image = row[:-1].reshape(image_dims)  # Reshape flattened image data to original shape
+        # Extract the label from the last element of the row
+        label = int(row[-1]) # Convert label to integer
+        labels.append(label) # Append the label to the labels list
+        data.append(image) # Append the image data to the data list
+
+    # Convert the lists of image data and labels to NumPy arrays
+    data = np.array(data, dtype=np.float32) / 255.0 # Convert data to float and normalize it
+    labels = np.array(labels, dtype=np.int32) # Convert labels to integers
+
+    return data, labels
+
 def k_fold_validation(features, ground_truth, classifier, k=2):
     '''
     Inputs:
