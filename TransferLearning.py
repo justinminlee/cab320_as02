@@ -20,6 +20,8 @@ import keras
 import cv2
 import math
 import matplotlib.pyplot as plt
+from sklearn.metrics import recall_score, precision_score, f1_score
+import tensorflow as tf
 
 import seaborn as sns
     
@@ -61,17 +63,38 @@ def load_data(path):
     
 def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
     """
-    Split the data into training and testing sets. If eval_set is True, also create
-    an evaluation dataset. There should be two outputs if eval_set there should
-    be three outputs (train, test, eval), otherwise two outputs (train, test).
-    
-    To see what type train, test, and eval should be, refer to the inputs of 
-    transfer_learning().
-    
-    Insert a more detailed description here.
+    Divides the dataset into training, testing, and optionally evaluation sets.
+
+    Args:
+        X (numpy.ndarray): The feature matrix.
+        Y (numpy.ndarray): The label vector.
+        train_fraction (float): The portion of the data to be used for training.
+        randomize (bool, optional): If True, shuffles the data before splitting. Default is False.
+        eval_set (bool, optional): If True, creates an evaluation set. Default is True.
+
+    Returns:
+        tuple: If eval_set is True, returns (train_X, train_Y, test_X, test_Y, eval_X, eval_Y).
+               If eval_set is False, returns (train_X, train_Y, test_X, test_Y).
     """
-    raise NotImplementedError
-    
+    num_samples = len(X)
+    num_train = int(train_fraction * num_samples)
+    num_test_eval = num_samples - num_train
+
+    if randomize:
+        permutation = np.random.permutation(num_samples)
+        X, Y = X[permutation], Y[permutation]
+
+    train_X, train_Y = X[:num_train], Y[:num_train]
+
+    if eval_set:
+        num_test = num_eval = num_test_eval // 2
+        test_X, test_Y = X[num_train:num_train + num_test], Y[num_train:num_train + num_test]
+        eval_X, eval_Y = X[num_train + num_test:], Y[num_train + num_test:]
+        return (train_X, train_Y), (test_X, test_Y), (eval_X, eval_Y)
+    else:
+        test_X, test_Y = X[num_train:], Y[num_train:]
+        return (train_X, train_Y), (test_X, test_Y)
+
     
 
 def confusion_matrix(predictions, ground_truth, plot=False, all_classes=None):
@@ -368,10 +391,47 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
         - model : an instance of tf.keras.applications.MobileNetV2
         - metrics : list of classwise recall, precision, and f1 scores of the 
             model on the test_set (list of np.ndarray)
-
     '''
-    raise NotImplementedError
+    # Freeze the base layers of the model
+    for layer in model.layers:
+        layer.trainable = False
+
+    learning_rate, momentum, nesterov = parameters
+
+    # Set up the optimizer
+    optimizer = tf.keras.optimizers.SGD(
+        learning_rate=learning_rate,
+        momentum=momentum,
+        nesterov=nesterov
+    )
+
+    # Compile the model with the optimizer and loss function
+    model.compile(
+        optimizer=optimizer,
+        loss=tf.keras.losses.SparseCategoricalCrossentropy(),
+        metrics=['accuracy']
+    )
+
+    # Train the model with the training set and validate with the evaluation set
+    history = model.fit(
+        train_set[0], train_set[1],
+        validation_data=eval_set,
+        epochs=30
+    )
+
+    # Evaluate the model on the test set
+    test_predictions = model.predict(test_set[0])
+    test_labels_pred = np.argmax(test_predictions, axis=1)
+    test_labels_true = test_set[1]
+
+    # Calculate classwise recall, precision, and f1 scores
+    recall = recall_score(test_labels_true, test_labels_pred, average=None)
+    precision = precision_score(test_labels_true, test_labels_pred, average=None)
+    f1 = f1_score(test_labels_true, test_labels_pred, average=None)
+
+    metrics = [recall, precision, f1]
     return model, metrics
+
 
 if __name__ == "__main__":
     
