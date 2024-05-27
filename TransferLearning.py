@@ -20,7 +20,6 @@ import keras
 import cv2
 import math
 import matplotlib.pyplot as plt
-from sklearn.metrics import recall_score, precision_score, f1_score
 import tensorflow as tf
 
 import seaborn as sns
@@ -425,11 +424,12 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
     test_labels_true = test_set[1]
 
     # Calculate classwise recall, precision, and f1 scores
-    recall = recall_score(test_labels_true, test_labels_pred, average=None)
-    precision = precision_score(test_labels_true, test_labels_pred, average=None)
-    f1 = f1_score(test_labels_true, test_labels_pred, average=None)
+    recall = recall(test_labels_true, test_labels_pred)
+    precision = precision(test_labels_true, test_labels_pred)
+    f1 = f1(test_labels_true, test_labels_pred)
 
     metrics = [recall, precision, f1]
+
     return model, metrics
 
 
