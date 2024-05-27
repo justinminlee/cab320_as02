@@ -18,7 +18,6 @@ import numpy as np
 import keras.applications as ka
 import keras
 import cv2
-import math
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
@@ -48,16 +47,14 @@ def load_data(path):
     
     Insert a more detailed description here.
     '''
-    images = []
-    # Obtain a list of subdirectory paths within the base path
-    directories = [ f.path for f in os.scandir(path) ]
-    # For each directory path...
-    for directory in directories:
-        # Read in each image and label - resizing each image to 128x128 pixels.
-        images.extend([ (directory.split('/')[2], cv2.resize(cv2.imread(f.path), (128,128))) for f in os.scandir(directory) ])
-    # Convert the list of image-label tuples to a numpy array and return
-    return np.array(images, dtype=object)
+    # Load the dataset from provided path
+    dataset = keras.utils.image_dataset_from_directory(path, batch_size=None, image_size=(128,128), shuffle=True, seed=0)
     
+    # Isolate images and labels
+    images, labels = zip(*[(image, label) for image, label in dataset.as_numpy_iterator()]) 
+    
+    # Return numpy arrays
+    return np.array(images), np.array(labels)
     
     
 def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
@@ -347,16 +344,16 @@ def transfer_learning(train_set, eval_set, test_set, model, parameters):
     inputs = keras.Input((128,128,3))
     x = model(inputs, training=False)
     x = keras.layers.GlobalAveragePooling2D()(x)    
-    outputs = keras.layers.Dense(1, activation='sigmoid')(x)
+    outputs = keras.layers.Dense(5, activation='sigmoid')(x)
     model = keras.Model(inputs, outputs)
     
     # Compile the new model
     model.compile(optimizer=keras.optimizers.SGD(learning_rate=parameters[0], momentum=parameters[1], nesterov=parameters[2]), \
-                  loss=keras.losses.BinaryCrossentropy(), \
-                  metrics=keras.metrics.BinaryAccuracy(threshold=0.5, name='accuracy'))
+                  loss=keras.losses.SparseCategoricalCrossentropy(), \
+                  metrics=['accuracy'])
         
     # Train the new model
-    model.fit(train_set, epochs=10, validation_data=eval_set)
+    model.fit(train_set[0], train_set[1], epochs=10, validation_data=eval_set, epochs=30)
     
     # Create predictions
     predictions = model.predict(test_set[0])
@@ -436,17 +433,17 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
 if __name__ == "__main__":
     
     model = load_model()
-    dataset = load_data('./small_flower_dataset')
-    train_eval_test = split_data()
+    images, labels = load_data('./small_flower_dataset')
+    train_eval_test = split_data(images, labels, 0.8)
     
     learning_rate = 0.01
-    momentum = 0
+    momentum = 0.0
     nesterov = False
     model_params = (learning_rate, momentum, nesterov)
     
     model, metrics = transfer_learning(train_eval_test[0], train_eval_test[1], train_eval_test[2], model, model_params)
     
-    model, metrics = accelerated_learning()
+    model, metrics = accelerated_learning(train_eval_test[0], train_eval_test[1], train_eval_test[2], model, model_params)
     
     
 #########################  CODE GRAVEYARD  #############################
