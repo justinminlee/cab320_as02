@@ -353,7 +353,7 @@ def transfer_learning(train_set, eval_set, test_set, model, parameters):
                   metrics=['accuracy'])
         
     # Train the new model
-    model.fit(train_set[0], train_set[1], epochs=10, validation_data=eval_set, epochs=30)
+    model.fit(train_set[0], train_set[1], epochs=30, validation_data=eval_set)
     
     # Create predictions
     predictions = model.predict(test_set[0])
