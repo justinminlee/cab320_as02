@@ -345,7 +345,7 @@ def transfer_learning(train_set, eval_set, test_set, model, parameters):
     inputs = keras.Input((128,128,3))
     x = model(inputs, training=False)
     x = keras.layers.GlobalAveragePooling2D()(x)    
-    outputs = keras.layers.Dense(5, activation='sigmoid')(x)
+    outputs = keras.layers.Dense(5, activation='softmax')(x)
     model = keras.Model(inputs, outputs)
     
     # Compile the new model
@@ -358,6 +358,7 @@ def transfer_learning(train_set, eval_set, test_set, model, parameters):
     
     # Create predictions
     predictions = model.predict(test_set[0])
+    predictions = np.argmax(predictions, axis=1)
     # Establish the expected results
     ground_truth = test_set[1]
     
