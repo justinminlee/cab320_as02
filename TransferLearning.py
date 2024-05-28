@@ -201,30 +201,31 @@ def f1(predictions, ground_truth):
 
     return f1
 
-def split_data_label(dataset):
+def split_data_label(path):
 
-    # Define the dimensions of the images (height, width, channels)
-    image_dims = (224, 224, 3)
+    data = [] # Initialize an empty list to store image data
+    labels = [] # Initialize an empty list to store labels
 
-    # Calculate the total number of features in each image
-    num_features = np.prod(image_dims)
+    # Loop through each item in the directory specified by 'path'
+    for directory in os.scandir(path):
+        if directory.is_dir(): # Check if the item is a directory (a class folder)
+            class_name = directory.name  # get the name of the subdirectory
 
-    # Initialize lists to store image data and corresponding labels
-    data = []
-    labels = []
+            # Loop through each file in the class directory
+            for file in os.scandir(directory.path):
+                if file.is_file() and file.path.endswith(('.png', '.jpg', '.jpeg')): # Check if the item is a file and has an image extension
+                    image = cv2.imread(file.path) # Read the image file
 
-    # Iterate over each row in the dataset
-    for row in dataset:
-        # Extract the image data from the row, excluding the last element (which is the label)
-        image = row[:-1].reshape(image_dims)  # Reshape flattened image data to original shape
-        # Extract the label from the last element of the row
-        label = int(row[-1]) # Convert label to integer
-        labels.append(label) # Append the label to the labels list
-        data.append(image) # Append the image data to the data list
+                    # Check if the image was read successfully
+                    if image is not None:
+                        image = cv2.resize(image, (128, 128)) # Resize the image to 128x128 pixels
+                        data.append(image) # Add the image to the data list
+                        labels.append(class_name) # Add the class label to the labels list
+                    else:
+                        print(f"Could not read image file {file.path}") # Print a warning if the image could not be read
 
-    # Convert the lists of image data and labels to NumPy arrays
-    data = np.array(data, dtype=np.float32) / 255.0 # Convert data to float and normalize it
-    labels = np.array(labels, dtype=np.int32) # Convert labels to integers
+    data = np.array(data) # Convert the data list to a NumPy array
+    labels = np.array(labels) # Convert the labels list to a NumPy array
 
     return data, labels
 
