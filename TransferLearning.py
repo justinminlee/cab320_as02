@@ -423,11 +423,11 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
     test_labels_true = test_set[1]
 
     # Calculate classwise recall, precision, and f1 scores
-    recall = recall(test_labels_true, test_labels_pred)
-    precision = precision(test_labels_true, test_labels_pred)
-    f1 = f1(test_labels_true, test_labels_pred)
+    r = recall(test_labels_true, test_labels_pred)
+    p = precision(test_labels_true, test_labels_pred)
+    f = f1(test_labels_true, test_labels_pred)
 
-    metrics = [recall, precision, f1]
+    metrics = [r, p, f]
 
     return model, metrics
 
