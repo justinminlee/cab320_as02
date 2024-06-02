@@ -34,7 +34,11 @@ def my_team():
 def load_model():
     '''
     Load in a model using the tf.keras.applications model and return it.
-    Insert a more detailed description here
+        
+    Returns:
+        keras.Model: An instance of the MobileNetV2 model with the specified input shape and without the top fully-connected layer.
+
+    
     '''
     return ka.MobileNetV2(input_shape=(128,128,3), include_top=False)
     
@@ -45,7 +49,14 @@ def load_data(path):
     to the home directory the dataset is found in. Should return a numpy array
     with paired images and class labels.
     
-    Insert a more detailed description here.
+    Args:
+        path (str): The file path to the directory where the dataset is located. The directory should be 
+                    structured with subdirectories representing each class, containing the respective images.
+
+    Returns:
+        tuple: A tuple containing two numpy arrays:
+            - images (numpy.ndarray): An array of shape (num_samples, 128, 128, 3) containing the image data.
+            - labels (numpy.ndarray): An array of shape (num_samples,) containing the class labels.
     '''
     # Load the dataset from provided path
     dataset = keras.utils.image_dataset_from_directory(path, batch_size=None, image_size=(128,128), shuffle=True, seed=0)
@@ -72,28 +83,41 @@ def split_data(X, Y, train_fraction, randomize=False, eval_set=True):
         tuple: If eval_set is True, returns (train_X, train_Y, test_X, test_Y, eval_X, eval_Y).
                If eval_set is False, returns (train_X, train_Y, test_X, test_Y).
     """
+    # Determine the total number of samples
     num_samples = len(X)
+    # Calculate the number of training samples
     num_train = int(train_fraction * num_samples)
+    # Calculate the number of samples for testing and evaluation
     num_test_eval = num_samples - num_train
 
+     # Randomize the data if specified
     if randomize:
+        # Create a random permutation of indices
         permutation = np.random.permutation(num_samples)
+        # Shuffle the feature matrix and label vector
         X, Y = X[permutation], Y[permutation]
 
+    # Split the data into training set
     train_X, train_Y = X[:num_train], Y[:num_train]
 
     if eval_set:
+        # Calculate the number of samples for testing and evaluation sets
         num_test = num_eval = num_test_eval // 2
+        # Split the data into testing set
         test_X, test_Y = X[num_train:num_train + num_test], Y[num_train:num_train + num_test]
+        # Split the data into evaluation set
         eval_X, eval_Y = X[num_train + num_test:], Y[num_train + num_test:]
+        # Return training, testing, and evaluation sets
         return (train_X, train_Y), (test_X, test_Y), (eval_X, eval_Y)
     else:
+        # Split the data into testing set only if evaluation set is not required
         test_X, test_Y = X[num_train:], Y[num_train:]
+        # Return training and testing sets
         return (train_X, train_Y), (test_X, test_Y)
 
     
 
-def confusion_matrix(predictions, ground_truth, plot=False, all_classes=None):
+def confusion_matrix(predictions, ground_truth, plot=True, all_classes=None):
     '''
     Given a set of classifier predictions and the ground truth, calculate and
     return the confusion matrix of the classifier's performance.
@@ -201,33 +225,6 @@ def f1(predictions, ground_truth):
 
     return f1
 
-def split_data_label(path):
-
-    data = [] # Initialize an empty list to store image data
-    labels = [] # Initialize an empty list to store labels
-
-    # Loop through each item in the directory specified by 'path'
-    for directory in os.scandir(path):
-        if directory.is_dir(): # Check if the item is a directory (a class folder)
-            class_name = directory.name  # get the name of the subdirectory
-
-            # Loop through each file in the class directory
-            for file in os.scandir(directory.path):
-                if file.is_file() and file.path.endswith(('.png', '.jpg', '.jpeg')): # Check if the item is a file and has an image extension
-                    image = cv2.imread(file.path) # Read the image file
-
-                    # Check if the image was read successfully
-                    if image is not None:
-                        image = cv2.resize(image, (128, 128)) # Resize the image to 128x128 pixels
-                        data.append(image) # Add the image to the data list
-                        labels.append(class_name) # Add the class label to the labels list
-                    else:
-                        print(f"Could not read image file {file.path}") # Print a warning if the image could not be read
-
-    data = np.array(data) # Convert the data list to a NumPy array
-    labels = np.array(labels) # Convert the labels list to a NumPy array
-
-    return data, labels
 
 def k_fold_validation(features, ground_truth, classifier, k=2):
     '''
@@ -314,6 +311,25 @@ def k_fold_validation(features, ground_truth, classifier, k=2):
 
     return avg_metrics, sigma_metrics
 
+def layer_feezer(model):
+    """
+    Freeze all of the layers in the model except the last one.
+
+    Args:
+        model (tf.keras.Model): A TensorFlow Keras Model whose layers are to be frozen.
+
+    Returns:
+        tf.keras.Model: The input TensorFlow Keras Model with all layers frozen except the last one.
+    """
+    # Get the total number of layers in the model
+    num_layers = len(model.layers)
+
+    # Freeze all layers except the last one
+    for layer in model.layers[:-1]:
+        layer.trainable = False
+
+    return model
+
 
 ##################### MAIN ASSIGNMENT CODE FROM HERE ######################
 
@@ -354,7 +370,7 @@ def transfer_learning(train_set, eval_set, test_set, model, parameters):
                   metrics=['accuracy'])
         
     # Train the new model
-    model.fit(train_set[0], train_set[1], epochs=30, validation_data=eval_set)
+    history = model.fit(train_set[0], train_set[1], epochs=30, validation_data=eval_set)
     
     # Create predictions
     predictions = model.predict(test_set[0])
@@ -366,6 +382,7 @@ def transfer_learning(train_set, eval_set, test_set, model, parameters):
     metrics = [ recall(predictions, ground_truth), \
                 precision(predictions, ground_truth), \
                 f1(predictions, ground_truth) ]
+
     
     return model, metrics
     
@@ -391,8 +408,7 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
             model on the test_set (list of np.ndarray)
     '''
     # Freeze the base layers of the model
-    for layer in model.layers:
-        layer.trainable = False
+    model = layer_feezer(model)
 
     learning_rate, momentum, nesterov = parameters
 
@@ -428,24 +444,28 @@ def accelerated_learning(train_set, eval_set, test_set, model, parameters):
     f = f1(test_labels_true, test_labels_pred)
 
     metrics = [r, p, f]
+    
 
     return model, metrics
 
 
+
 if __name__ == "__main__":
-    
-    model = load_model()
-    images, labels = load_data('./small_flower_dataset')
-    train_eval_test = split_data(images, labels, 0.8)
+
+    #model = load_model()
+
+    #mages, labels = load_data('./small_flower_dataset')
+    #train_eval_test = split_data(images, labels, 0.8, True, True)
     
     learning_rate = 0.01
     momentum = 0.0
     nesterov = False
     model_params = (learning_rate, momentum, nesterov)
     
-    model, metrics = transfer_learning(train_eval_test[0], train_eval_test[1], train_eval_test[2], model, model_params)
-    
-    model, metrics = accelerated_learning(train_eval_test[0], train_eval_test[1], train_eval_test[2], model, model_params)
+    #model, metrics = transfer_learning(train_eval_test[0], train_eval_test[1], train_eval_test[2], model, model_params)
+
+    #model, metrics = accelerated_learning(train_eval_test[0], train_eval_test[1], train_eval_test[2], model, model_params)
+
     
     
 #########################  CODE GRAVEYARD  #############################
